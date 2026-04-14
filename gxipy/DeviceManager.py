@@ -4,6 +4,9 @@
 
 
 import numpy
+from numpy.compat import long
+
+from gxipy.Device import Device
 from gxipy.gxwrapper import *
 from gxipy.dxwrapper import *
 from gxipy.gxidef import *
@@ -21,6 +24,7 @@ if sys.version_info.major > 2:
 else:
     INT_TYPE = (int, long)
 
+
 class DeviceManager(object):
     __instance_num = 0
 
@@ -34,7 +38,7 @@ class DeviceManager(object):
             raise ParameterTypeError("DeviceManager.set_log_type: "
                                      "Expected log type is int, not %s" % type(log_type))
 
-        status= gx_set_log_type(log_type)
+        status = gx_set_log_type(log_type)
         StatusProcessor.process(status, 'DeviceManager', 'set_log_type')
 
     def get_log_type(self):
@@ -43,7 +47,7 @@ class DeviceManager(object):
         :return:    status:      State return value, See detail in GxStatusList
                     log_type:    log type,See detail in GxLogTypeList
         """
-        status,log_type = gx_get_log_type()
+        status, log_type = gx_get_log_type()
         StatusProcessor.process(status, 'DeviceManager', 'get_log_type')
         self.__log_type = log_type
 
@@ -341,8 +345,7 @@ class DeviceManager(object):
         status, interface_handle = gx_get_interface_handle(index)
         StatusProcessor.process(status, 'DeviceManager', 'get_interface')
 
-        return Interface(interface_handle, self.__interface_info_list[ index - 1])
-
+        return Interface(interface_handle, self.__interface_info_list[index - 1])
 
     def get_device_number(self):
         """
@@ -601,7 +604,6 @@ class DeviceManager(object):
         status = gx_gige_reset_device(mac_address, reset_device_mode)
         StatusProcessor.process(status, 'DeviceManager', 'gige_reset_device')
 
-
     def gige_force_ip(self, mac_address, ip_address, subnet_mask, default_gate_way):
         """
         :brief      Execute the Force IP
@@ -637,6 +639,7 @@ class DeviceManager(object):
         _InterUtility.check_type(user_id, str, "user_id", "DeviceManager", "gige_ip_configuration")
         status = gx_gige_ip_configuration(mac_address, ipconfig_flag, ip_address, subnet_mask, default_gateway, user_id)
         StatusProcessor.process(status, 'DeviceManager', 'gige_ip_configuration')
+
     def create_image_format_convert(self):
         """
         :brief      create new convert pointer
@@ -652,6 +655,71 @@ class DeviceManager(object):
         """
         image_process = ImageProcess()
         return image_process
+
+    def issue_action_command(self, device_key, group_key, group_mask, broadcast_address, special_address, time_out,
+                             expect_ack_number_res):
+        """
+        :brief                 Send normal action command
+        :device_key            [in]ACK_COMMAND protocol: Key to identify the device
+        :group_key             [in]ACK_COMMAND protocol: Key to identify the group
+        :group_mask            [in]ACK_COMMAND protocol: Key to identify the group
+        :broadcast_address     [in] Broadcast address entered by the user
+        :special_address       [in] Optional parameter user specifies which network port to send
+        :time_out              [in] time out
+        :expect_ack_number_res [in]The expected number of acks returned
+                               [out]The actual number of acks returned
+
+        :return:  status:  State return value, See detail in GxStatusList
+        """
+
+        _InterUtility.check_type(device_key, INT_TYPE, "device_key", "DeviceManager", "issue_action_command")
+        _InterUtility.check_type(group_key, INT_TYPE, "group_key", "DeviceManager", "issue_action_command")
+        _InterUtility.check_type(group_mask, INT_TYPE, "group_mask", "DeviceManager", "issue_action_command")
+        _InterUtility.check_type(broadcast_address, str, "broadcast_address", "DeviceManager", "issue_action_command")
+
+        _InterUtility.check_type(time_out, INT_TYPE, "time_out", "DeviceManager", "issue_action_command")
+        _InterUtility.check_type(expect_ack_number_res, INT_TYPE, "expect_ack_number_res", "DeviceManager",
+                                 "issue_action_command")
+
+        status, actual_ack_list = gx_issue_action_command(device_key, group_key, group_mask, broadcast_address, special_address,
+                                                time_out, expect_ack_number_res)
+
+
+        StatusProcessor.process(status, 'DeviceManager', 'issue_action_command')
+        return actual_ack_list
+
+    def issue_scheduled_action_command(self, device_key, group_key, group_mask, action_time, broadcast_address,
+                                       special_address, time_out,
+                                       expect_ack_number_res):
+        """
+        :brief                 Send normal action command
+        :device_key            [in]ACK_COMMAND protocol: Key to identify the device
+        :group_key             [in]ACK_COMMAND protocol: Key to identify the group
+        :group_mask            [in]ACK_COMMAND protocol: Key to identify the group
+        :action_time           [in]ACK_COMMAND protocol: Time to execute the planned action command
+        :broadcast_address     [in] Broadcast address entered by the user
+        :special_address       [in] Optional parameter user specifies which network port to send
+        :time_out              [in] time out
+        :expect_ack_number_res [in]The expected number of acks returned
+                               [out]The actual number of acks returned
+
+        :return:  status:  State return value, See detail in GxStatusList
+        """
+
+        _InterUtility.check_type(device_key, INT_TYPE, "device_key", "DeviceManager", "issue_scheduled_action_command")
+        _InterUtility.check_type(group_key, INT_TYPE, "group_key", "DeviceManager", "issue_scheduled_action_command")
+        _InterUtility.check_type(group_mask, INT_TYPE, "group_mask", "DeviceManager", "issue_scheduled_action_command")
+        _InterUtility.check_type(broadcast_address, str, "broadcast_address", "DeviceManager", "issue_scheduled_action_command")
+
+        _InterUtility.check_type(time_out, INT_TYPE, "time_out", "DeviceManager", "issue_scheduled_action_command")
+        _InterUtility.check_type(action_time, INT_TYPE, "action_time", "DeviceManager", "issue_scheduled_action_command")
+        _InterUtility.check_type(expect_ack_number_res, INT_TYPE, "expect_ack_number_res", "DeviceManager", "issue_scheduled_action_command")
+
+        status, actual_ack_list = gx_issue_scheduled_action_command(device_key, group_key, group_mask, action_time, broadcast_address,
+                                                   special_address,
+                                                   time_out, expect_ack_number_res)
+        StatusProcessor.process(status, 'DeviceManager', 'issue_scheduled_action_command')
+        return actual_ack_list
 
 class _InterUtility:
     def __init__(self):

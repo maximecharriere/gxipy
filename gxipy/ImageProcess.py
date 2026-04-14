@@ -71,8 +71,9 @@ class ImageProcess:
         elif pixel_format == GxPixelFormatEntry.BGR8:
             channel_order = DxRGBChannelOrder.ORDER_BGR
 
-        if pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8):
-            if pixel_format == GxPixelFormatEntry.BGR8:
+        yuv_pixel = (GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)
+        if (pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8)) or (pixel_format in yuv_pixel):
+            if (pixel_format == GxPixelFormatEntry.BGR8) or (pixel_format in yuv_pixel):
 
                 self.__check_handle()
                 status = dx_image_format_convert_set_output_pixel_format(self.image_convert_handle,

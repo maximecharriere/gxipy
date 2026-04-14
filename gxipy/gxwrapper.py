@@ -24,9 +24,13 @@ else:
 
         if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
             os.add_dll_directory(GeniCam_AddPath32)
-            os.add_dll_directory(GeniCam_AddPath64)
             os.add_dll_directory(GxiApi_AddPath32)
-            os.add_dll_directory(GxiApi_AddPath64)
+
+            # 32bit system has no GeniCam_AddPath64/GxiApi_AddPath64
+            if os.path.exists(GeniCam_AddPath64):
+                os.add_dll_directory(GeniCam_AddPath64)
+            if os.path.exists(GxiApi_AddPath64):
+                os.add_dll_directory(GxiApi_AddPath64)
             
             dll = WinDLL('GxIAPI.dll', winmode=0)
         else:
@@ -439,7 +443,7 @@ class GxFeatureID:
     INT_FFC_FACTORY_STATUS = 0x100017b1                     # Level-field correction status detection
     INT_DSNU_FACTORY_STATUS = 0x100017b2                    # Detection of dark-field correction state
     INT_PRNU_FACTORY_STATUS = 0x100017b3                    # Open field correction state detection
-    BUFFER_DETECT = 0x100017b4                              # Buffer detection（CXP）
+    BUFFER_DETECT = 0x100017b4                              # Buffer detection (CXP)
     ENUM_FFC_COEFFICIENT = 0x700017b5                       # Selection of flat field correction coefficient
     BUFFER_FFCFLASH_LOAD = 0x700017b6                       # Load the flat field correction coefficient
     BUFFER_FFCFLASH_SAVE = 0x700017b7                       # Save the flat field correction coefficient
@@ -685,59 +689,125 @@ class GxOpenParam(Structure):
         return "GxOpenParam\n%s" % "\n".join( "%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
 
 
-class GxFrameCallbackParam(Structure):
-    _fields_ = [
-        ('user_param_index',    c_void_p),      # User private data
-        ('status',              c_int),         # The return state of the image
-        ('image_buf',           c_void_p),      # Image buff address
-        ('image_size',          c_int),         # Image data size, Including frame information
-        ('width',               c_int),         # Image width
-        ('height',              c_int),         # Image height
-        ('pixel_format',        c_int),         # Image PixFormat
-        ('frame_id',            c_ulonglong),   # The frame id of the image
-        ('timestamp',           c_ulonglong),   # Time stamp of image
-        ('reserved',            c_int),         # Reserved
-    ]
+# The data structure definitions for collection in Windows and Linux are different, so it is necessary to distinguish between them here.
+if sys.platform != 'linux2' and sys.platform != 'linux':
+    class GxFrameCallbackParam(Structure):
+        _fields_ = [
+            ('user_param_index',    c_void_p),      # User private data
+            ('status',              c_int),         # The return state of the image
+            ('image_buf',           c_void_p),      # Image buff address
+            ('image_size',          c_int),         # Image data size, Including frame information
+            ('width',               c_int),         # Image width
+            ('height',              c_int),         # Image height
+            ('pixel_format',        c_int),         # Image PixFormat
+            ('frame_id',            c_ulonglong),   # The frame id of the image
+            ('timestamp',           c_ulonglong),   # Time stamp of image
+            ('reserved',            c_int),         # Reserved
+        ]
 
-    def __str__(self):
-        return "GxFrameCallbackParam\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+        def __str__(self):
+            return "GxFrameCallbackParam\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
 
 
-class GxFrameData(Structure):
-    _fields_ = [
-        ('status', c_int),                      # The return state of the image
-        ('image_buf', c_void_p),                # Image buff address
-        ('width', c_int),                       # Image width
-        ('height', c_int),                      # Image height
-        ('pixel_format', c_int),                # Image PixFormat
-        ('image_size', c_int),                  # Image data size, Including frame information
-        ('frame_id', c_ulonglong),              # The frame id of the image
-        ('timestamp', c_ulonglong),             # Time stamp of image
-        ('buf_id', c_ulonglong),                # Image buff ID
-        ('reserved',  c_int),                   # Reserved
-    ]
+    class GxFrameData(Structure):
+        _fields_ = [
+            ('status', c_int),                      # The return state of the image
+            ('image_buf', c_void_p),                # Image buff address
+            ('width', c_int),                       # Image width
+            ('height', c_int),                      # Image height
+            ('pixel_format', c_int),                # Image PixFormat
+            ('image_size', c_int),                  # Image data size, Including frame information
+            ('frame_id', c_ulonglong),              # The frame id of the image
+            ('timestamp', c_ulonglong),             # Time stamp of image
+            ('user_param', c_void_p),               # User param
+            ('reserved',  c_int),                   # Reserved
 
-    def __str__(self):
-        return "GxFrameData\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+            ('buf_id', c_ulonglong),                # Image buff ID (for dq_buf)
+        ]
 
-class GxFrameBuffer(ctypes.Structure):
-    _fields_ = [
-        ('frame_id', c_ulonglong),              # The frame id of the image
-        ('timestamp', c_ulonglong),             # Time stamp of image
-        ('buf_id', c_ulonglong),                # Image buff ID
-        ('image_buf', c_void_p),                # Image buff address
-        ('status', c_uint),                     # The return state of the image
-        ('width', c_uint),                      # Image width
-        ('height', c_uint),                     # Image height
-        ('pixel_format', c_uint),               # Image PixFormat
-        ('image_size', c_uint),                 # Image data size, Including frame information
-        ('offset_x', c_uint),                   # X-direction offset of the image
-        ('offset_y', c_uint),                   # Y-direction offset of the image
-        ('reserved', c_uint),                   # Reserved
-    ]
+        def __str__(self):
+            return "GxFrameData\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
 
-    def __str__(self):
-        return "GxFrameBuffer\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+    class GxFrameBuffer(ctypes.Structure):
+        _fields_ = [
+            ('frame_id', c_ulonglong),              # The frame id of the image
+            ('timestamp', c_ulonglong),             # Time stamp of image
+            ('buf_id', c_ulonglong),                # Image buff ID
+            ('image_buf', c_ulonglong),                # Image buff address
+            ('status', c_uint),                     # The return state of the image
+            ('width', c_uint),                      # Image width
+            ('height', c_uint),                     # Image height
+            ('pixel_format', c_uint),               # Image PixFormat
+            ('image_size', c_uint),                 # Image data size, Including frame information
+            ('offset_x', c_uint),                   # X-direction offset of the image
+            ('offset_y', c_uint),                   # Y-direction offset of the image
+            ('user_param', c_void_p),               # User param
+            ('reserved', c_uint),                   # Reserved
+        ]
+
+        def __str__(self):
+            return "GxFrameBuffer\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+else:
+    class GxFrameCallbackParam(Structure):
+        _fields_ = [
+            ('user_param_index',    c_void_p),      # User private data
+            ('status',              c_int),         # The return state of the image
+            ('image_buf',           c_void_p),      # Image buff address
+            ('image_size',          c_int),         # Image data size, Including frame information
+            ('width',               c_int),         # Image width
+            ('height',              c_int),         # Image height
+            ('pixel_format',        c_int),         # Image PixFormat
+            ('frame_id',            c_ulonglong),   # The frame id of the image
+            ('timestamp',           c_ulonglong),   # Time stamp of image
+            ('offset_x',            c_int),         # X-direction offset of the image
+            ('offset_y',            c_int),         # Y-direction offset of the image
+            ('reserved',            c_int),         # Reserved
+        ]
+
+        def __str__(self):
+            return "GxFrameCallbackParam\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+
+
+    class GxFrameData(Structure):
+        _fields_ = [
+            ('status',              c_int),         # The return state of the image
+            ('image_buf',           c_void_p),      # Image buff address
+            ('width',               c_int),         # Image width
+            ('height',              c_int),         # Image height
+            ('pixel_format',        c_int),         # Image PixFormat
+            ('image_size',          c_int),         # Image data size, Including frame information
+            ('frame_id',            c_ulonglong),   # The frame id of the image
+            ('timestamp',           c_ulonglong),   # Time stamp of image
+            ('offset_x',            c_int),         # X-direction offset of the image
+            ('offset_y',            c_int),         # Y-direction offset of the image
+            ('reserved',            c_int),         # Reserved
+            # Reserved
+
+            ('buf_id', c_ulonglong),                # Image buff ID (for dq_buf)
+        ]
+
+        def __str__(self):
+            return "GxFrameData\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+
+    class GxFrameBuffer(ctypes.Structure):
+        _fields_ = [
+            ('status',              c_uint),        # The return state of the image
+            ('image_buf',           c_void_p),      # Image buff address
+            ('width',               c_uint),        # Image width
+            ('height',              c_uint),        # Image height
+            ('pixel_format',        c_uint),        # Image PixFormat
+            ('image_size',          c_uint),        # Image data size, Including frame information
+            ('frame_id',            c_ulonglong),   # The frame id of the image
+            ('timestamp',           c_ulonglong),   # Time stamp of image
+            ('buf_id',              c_ulonglong),   # Image buff ID
+            ('offset_x',            c_uint),        # X-direction offset of the image
+            ('offset_y',            c_uint),        # Y-direction offset of the image
+            ('user_param',          c_void_p),      # User param
+            ('reserved', c_uint),                   # Reserved
+        ]
+
+        def __str__(self):
+            return "GxFrameBuffer\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
 
 class GxIntFeatrue(Structure):
     _fields_ = [
@@ -847,6 +917,16 @@ class GxRegisterStackEntry(Structure):
 
      def __str__(self):
          return "GxRegisterStackEntry\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+
+class GxActionCommandResult(Structure):
+    _fields_ = [
+        ('device_ip', c_char * 16),  # ip of device
+        ('status', c_int32),  # status of ack
+    ]
+
+    def __str__(self):
+        return "GxActionCommandResult\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+
 
 if hasattr(dll, 'GXSetLogType'):
     def gx_set_log_type(log_type):
@@ -1717,7 +1797,7 @@ if hasattr(dll, 'GXWritePortStacked'):
         return status
 
 
-FEATURE_CALL = CFUNCTYPE(None, c_char_p, py_object)
+FEATURE_CALL_CHAR = CFUNCTYPE(None, c_char_p, py_object)
 if hasattr(dll, 'GXRegisterFeatureCallbackByString'):
     def gx_register_feature_call_back_by_string(handle, call_back, feature_name, args):
         """
@@ -1762,6 +1842,41 @@ if hasattr(dll, 'GXUnregisterFeatureCallbackByString'):
         return status
 
 
+if hasattr(dll, 'GXRegisterBuffer'):
+    def gx_register_buffer(handle, user_buf, user_param):
+        """
+        :brief      Register extern capture buffer
+        :param      handle:         The handle of the device each layer.
+        :param      user_buf:       User alloc buffer.
+        :param      user_param:     User parameter.
+        :return:    status:         State return value, See detail in GxStatusList
+        """
+        handle_c = c_void_p()
+        handle_c.value = handle
+
+        address_of_buffer = ctypes.addressof(user_buf)
+        size_of_buffer = len(user_buf)
+
+        status = dll.GXRegisterBuffer(handle_c, ctypes.cast(address_of_buffer, ctypes.c_void_p),
+                                      ctypes.c_size_t(size_of_buffer), ctypes.py_object(user_param))
+        return status
+
+
+if hasattr(dll, 'GXUnRegisterBuffer'):
+    def gx_unregister_buffer(handle, user_buf):
+        """
+        :brief      UnRegister extern capture buffer
+        :param      handle:         The handle of the device each layer.
+        :param      user_buf:       User alloc buffer.
+        :return:    status:         State return value, See detail in GxStatusList
+        """
+        handle_c = c_void_p()
+        handle_c.value = handle
+
+        address_of_buffer = ctypes.addressof(user_buf)
+
+        status = dll.GXUnRegisterBuffer(handle_c, ctypes.cast(address_of_buffer, ctypes.c_void_p))
+        return status
 
 if hasattr(dll, 'GXGetDevicePersistentIpAddress'):
     def gx_get_device_persistent_ip_address(handle, ip_length=16, subnet_mask_length=16, default_gateway_length=16):
@@ -2829,6 +2944,90 @@ if hasattr(dll,'GXWriteRemoteDevicePortStacked'):
         
         status = dll.GXWriteRemoteDevicePortStacked(handle_c, entries, byref(size_c))
         return status
+
+if hasattr(dll, 'GXGigEIssueActionCommand'):
+    def gx_issue_action_command(device_key, group_key, group_mask, broadcast_address, special_address, time_out,
+                                expect_ack_number_res):
+        """
+        :brief                 Send normal action command
+        :device_key            [in]ACK_COMMAND protocol: Key to identify the device
+        :group_key             [in]ACK_COMMAND protocol: Key to identify the group
+        :group_mask            [in]ACK_COMMAND protocol: Key to identify the group
+        :broadcast_address     [in] Broadcast address entered by the user
+        :special_address       [in] Optional parameter user specifies which network port to send
+        :time_out              [in] time out
+        :expect_ack_number_res [in]The expected number of acks returned
+                               [out]The actual number of acks returned
+        :expect_ack_st           [out]The user allocates memory to return the expected ack status to the device.
+
+        :return:  status:  State return value, See detail in GxStatusList
+        """
+        dest_ip_c = create_string_buffer(string_encoding(broadcast_address))
+
+        if special_address is not None:
+            special_ip_c = create_string_buffer(string_encoding(special_address))
+        else:
+            special_ip_c = None
+
+        expect_ack_c = c_uint32()
+        expect_ack_c.value = expect_ack_number_res
+
+        expect_ack_st = (GxActionCommandResult * expect_ack_number_res)()
+        status = dll.GXGigEIssueActionCommand(device_key, group_key, group_mask, dest_ip_c,
+                                              special_ip_c, time_out, byref(expect_ack_c), expect_ack_st)
+
+        actual_ack_list = []
+        for i in range(expect_ack_c.value):
+            actual_ack_list.append({
+                'status': expect_ack_st[i].status,
+                'device_ip': string_decoding(expect_ack_st[i].device_ip),
+            })
+        return status, actual_ack_list
+
+if hasattr(dll, 'GXGigEIssueScheduledActionCommand'):
+    def gx_issue_scheduled_action_command(device_key, group_key, group_mask, action_time, broadcast_address,
+                                          special_address, time_out,
+                                          expect_ack_number_res):
+        """
+        :brief                 Send normal action command
+        :device_key            [in]ACK_COMMAND protocol: Key to identify the device
+        :group_key             [in]ACK_COMMAND protocol: Key to identify the group
+        :group_mask            [in]ACK_COMMAND protocol: Key to identify the group
+        :action_time           [in]ACK_COMMAND protocol: Time to execute the planned action command
+        :broadcast_address     [in] Broadcast address entered by the user
+        :special_address       [in] Optional parameter user specifies which network port to send
+        :time_out              [in] time out
+        :expect_ack_number_res [in]The expected number of acks returned
+                               [out]The actual number of acks returned
+        :expect_ack_st           [out]The user allocates memory to return the expected ack status to the device.
+
+        :return:  status:  State return value, See detail in GxStatusList
+        """
+        dest_ip_c = create_string_buffer(string_encoding(broadcast_address))
+
+        if special_address is not None:
+            special_ip_c = create_string_buffer(string_encoding(special_address))
+        else:
+            special_ip_c = None
+
+        action_time_c = c_uint64()
+        action_time_c.value = action_time
+
+        expect_ack_c = c_uint32()
+        expect_ack_c.value = expect_ack_number_res
+
+        expect_ack_st = (GxActionCommandResult * expect_ack_number_res)()
+
+        status = dll.GXGigEIssueScheduledActionCommand(device_key, group_key, group_mask, action_time_c, dest_ip_c,
+                                                       special_ip_c, time_out, byref(expect_ack_c), expect_ack_st)
+
+        actual_ack_list = []
+        for i in range(expect_ack_c.value):
+            actual_ack_list.append({
+                'status': expect_ack_st[i].status,
+                'device_ip': string_decoding(expect_ack_st[i].device_ip),
+            })
+        return status, actual_ack_list
 
 '''
 if hasattr(dll, 'GXStreamOn'):

@@ -8,4 +8,4 @@ from gxipy.gxidef import *
 
 __all__ = ["gxwrapper", "dxwrapper", "gxiapi", "gxidef"]
 
-__version__ = '2.0.2407.9061'
+__version__ = '2.0.2412.9191'

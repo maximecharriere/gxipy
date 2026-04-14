@@ -215,6 +215,7 @@ class GxPixelFormatEntry:
     COORD3D_C16I16S16 = (GX_PIXEL_MONO | GX_PIXEL_16BIT | 0xFF04)  # 0x0110FF04 custom 3d pixel foramt
     YUV444_8 = (GX_PIXEL_COLOR | GX_PIXEL_24BIT | 0x0020)  # 0x2180020
     YUV422_8 = (GX_PIXEL_COLOR | GX_PIXEL_16BIT | 0x0032)  # 0x2100032
+    YUV422_8_UYVY = (GX_PIXEL_COLOR | GX_PIXEL_16BIT | 0x001F)  # 0x210001F
     YUV411_8 = (GX_PIXEL_COLOR | GX_PIXEL_12BIT | 0x001E)  # 0x20C001E
     YUV420_8_PLANAR = (GX_PIXEL_COLOR | GX_PIXEL_12BIT | 0x0040)  # 0x20C0040
     YCBCR444_8 = (GX_PIXEL_COLOR | GX_PIXEL_24BIT | 0x005B)  # 0x218005B
@@ -1004,7 +1005,7 @@ class GxTimerTriggerSourceEntry:
     def __init__(self):
         pass
 
-class GxDeviceTemperatireSelectorEntry:
+class GxDeviceTemperatureSelectorEntry:
     SENSOR = 1
     MAINBOARD = 2
 
@@ -1061,14 +1062,14 @@ class GxIMUConfigAccRangeEntry:
 class GxIMUConfigAccOdrEntry:
     ODR_1000HZ = 0
     ODR_500HZ = 1
-    ODR_250Hz = 2
-    ODR_125Hz = 3
-    ODR_63Hz = 4
-    ODR_31Hz = 5
-    ODR_16Hz = 6
-    ODR_2000Hz = 8
-    ODR_4000Hz = 9
-    ODR_8000Hz = 10
+    ODR_250HZ = 2
+    ODR_125HZ = 3
+    ODR_63HZ = 4
+    ODR_31HZ = 5
+    ODR_16HZ = 6
+    ODR_2000HZ = 8
+    ODR_4000HZ = 9
+    ODR_8000HZ = 10
 
     def __init__(self):
         pass

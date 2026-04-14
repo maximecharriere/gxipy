@@ -39,6 +39,10 @@ class Device:
 
         self.__c_feature_callback = FEATURE_CALL(self.__on_device_feature_callback)
         self.__py_feature_callback = None
+
+        self.__c_feature_callback_char = FEATURE_CALL_CHAR(self.__on_device_feature_callback_char)
+        self.__py_feature_callback_char = None
+
         self.__color_correction_param = 0
 
         # Function code function is obsolete, please use string to obtain attribute value
@@ -512,6 +516,7 @@ class Device:
         self.__py_offline_callback = None
         self.__offline_callback_handle = None
         self.__py_feature_callback = None
+        self.__py_feature_callback_char = None
 
     def get_stream_number(self):
         """
@@ -606,11 +611,10 @@ class Device:
                     Interface is obsolete.
         :return:    none
         """
-        status = gx_send_command(self.__dev_handle, GxFeatureID.COMMAND_ACQUISITION_START)
-        StatusProcessor.process(status, 'Device', 'stream_on')
-
         payload_size = self.data_stream[0].get_payload_size()
         self.data_stream[0].set_payload_size(payload_size)
+        status = gx_send_command(self.__dev_handle, GxFeatureID.COMMAND_ACQUISITION_START)
+        StatusProcessor.process(status, 'Device', 'stream_on')
         self.data_stream[0].set_acquisition_flag(True)
 
     def stream_off(self,stream_index = 0):
@@ -696,11 +700,11 @@ class Device:
                                      "Expected feature id is in GxEventSectionEntry not %s" % feature_name)
 
         status, feature_callback_handle = gx_register_feature_call_back_by_string \
-            (self.__dev_handle, self.__c_feature_callback, feature_name, args)
+            (self.__dev_handle, self.__c_feature_callback_char, feature_name, args)
         StatusProcessor.process(status, 'Device', 'register_device_feature_callback')
 
         # callback will not recorded when register callback failed.
-        self.__py_feature_callback = callback_func
+        self.__py_feature_callback_char = callback_func
         return feature_callback_handle
 
     def unregister_device_feature_callback(self, feature_id, feature_callback_handle):
@@ -729,7 +733,7 @@ class Device:
         status = gx_unregister_feature_call_back_by_string(self.__dev_handle, feature_name, feature_callback_handle)
         StatusProcessor.process(status, 'Device', 'unregister_device_feature_callback')
 
-        self.__py_feature_callback = None
+        self.__py_feature_callback_char = None
 
     def __on_device_feature_callback(self, c_feature_id, c_user_param):
         """
@@ -738,6 +742,12 @@ class Device:
         """
         self.__py_feature_callback(c_feature_id, c_user_param)
 
+    def __on_device_feature_callback_char(self, c_feature_name, c_user_param):
+        """
+        :brief      Device feature event callback function with an unused c_void_p.
+        :return:    none
+        """
+        self.__py_feature_callback_char(c_feature_name, c_user_param)
 
     def read_remote_device_port(self, address, buff, size):
         """

@@ -19,7 +19,7 @@ class Feature_s:
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         self.__handle = handle
@@ -29,7 +29,7 @@ class IntFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -89,7 +89,7 @@ class EnumFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -146,7 +146,7 @@ class FloatFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -196,7 +196,7 @@ class FloatFeature_s(Feature_s):
         """
         if not isinstance(float_value, float):
             raise ParameterTypeError("FloatFeature_s.set: "
-                                     "Expected float_value type is int, not %s" % type(float_value))
+                                     "Expected float_value type is float, not %s" % type(float_value))
 
         status = gx_set_float_feature_value(self.__handle, self.__feature_name, float_value)
         StatusProcessor.process(status, 'FloatFeature_s', 'set')
@@ -205,7 +205,7 @@ class BoolFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -229,7 +229,7 @@ class BoolFeature_s(Feature_s):
         """
         if not isinstance(bool_value, bool):
             raise ParameterTypeError("BoolFeature_s.set: "
-                                     "Expected bool_value type is int, not %s" % type(bool_value))
+                                     "Expected bool_value type is bool, not %s" % type(bool_value))
 
         status = gx_set_bool_feature_value( self.__handle, self.__feature_name, bool_value)
         StatusProcessor.process(status, 'BoolFeature_s', 'set')
@@ -238,7 +238,7 @@ class StringFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -271,7 +271,7 @@ class StringFeature_s(Feature_s):
         """
         if not isinstance(input_string, str):
             raise ParameterTypeError("StringFeature_s.set: "
-                                     "Expected input_string type is int, not %s" % type(input_string))
+                                     "Expected input_string type is string, not %s" % type(input_string))
 
         status = gx_set_string_feature_value( self.__handle, self.__feature_name, input_string)
         StatusProcessor.process(status, 'StringFeature_s', 'set')
@@ -280,7 +280,7 @@ class CommandFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)
@@ -300,7 +300,7 @@ class RegisterFeature_s(Feature_s):
     def __init__(self, handle, feature_name):
         """
         :brief  Constructor for instance initialization
-        :param handle:          Interface featrue control handle\Device local layer feature control\Device remote layer featrure control\Device stream layer feature control
+        :param handle:          Interface featrue control handle/Device local layer feature control/Device remote layer featrure control/Device stream layer feature control
         :param feature_name:    Feature node name
         """
         Feature_s.__init__( self, handle, feature_name)

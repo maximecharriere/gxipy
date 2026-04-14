@@ -215,6 +215,8 @@ class RawImage:
             self.__image_array = (c_ubyte * self.frame_data.image_size)()
             self.frame_data.image_buf = addressof(self.__image_array)
 
+        self.user_param = None
+
     def __pixel_format_raw16_to_raw8(self, pixel_format):
         """
         :brief      convert raw16 to raw8, the pixel format need convert to 8bit bayer format
@@ -615,7 +617,7 @@ class RawImage:
     def is_color_cam(self):
         pixel_color_filter = _InterUtility.get_pixel_color_filter(self.frame_data.pixel_format)
         if (pixel_color_filter > 0) or \
-                (self.frame_data.pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8)):
+                (self.frame_data.pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8, GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)):
             return True
         else:
             return False
@@ -1028,6 +1030,12 @@ class RawImage:
         """
         return self.frame_data.timestamp
 
+    def get_user_param(self):
+        """
+        :brief      Get  user param of raw data
+        :return:    user param
+        """
+        return self.user_param
 
 class Utility:
     def __init__(self):
@@ -1347,6 +1355,8 @@ class _InterUtility:
         :param      pixel_format
         :return:    pixel depth
         """
+        bpp8_tup = (GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)
+
         bpp10_tup = (GxPixelFormatEntry.MONO10, GxPixelFormatEntry.BAYER_GR10, GxPixelFormatEntry.BAYER_RG10,
                      GxPixelFormatEntry.BAYER_GB10, GxPixelFormatEntry.BAYER_BG10, GxPixelFormatEntry.MONO10_PACKED,
                      GxPixelFormatEntry.BAYER_GR10_P, GxPixelFormatEntry.BAYER_RG10_P, GxPixelFormatEntry.BAYER_GB10_P,
@@ -1370,7 +1380,7 @@ class _InterUtility:
         bpp16_tup = (GxPixelFormatEntry.MONO16, GxPixelFormatEntry.BAYER_GR16, GxPixelFormatEntry.BAYER_RG16,
                      GxPixelFormatEntry.BAYER_GB16, GxPixelFormatEntry.BAYER_BG16)
 
-        if (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_8BIT:
+        if ((pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_8BIT) or (pixel_format in bpp8_tup):
             return GxPixelSizeEntry.BPP8
         elif pixel_format in bpp10_tup:
             return GxPixelSizeEntry.BPP10
