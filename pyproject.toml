@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iai-gxipy"
-version = "2.0.2412.9191"
+version = "2.0.2412.9191-2"
 authors = [
     {name = "Daheng Imaging"}
 ]
