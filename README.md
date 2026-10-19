@@ -25,10 +25,23 @@ This package provides Python bindings for the Daheng Imaging Galaxy SDK, allowin
 
 The documentation is provided by Daheng Imaging and can be found in `C:\Program Files\Daheng Imaging\GalaxySDK\Development\Doc\Python Interface Development User Manual.pdf`
 
-## Python API source files
+## Note for myself : How to update the package
 
-When you download the Galaxy SDK for Linux, the official Python API is automatically included.  
-You can found the API files in `Galaxy_Linux_Python_X.X.X.X\api\gxipy`.
+1. Download the `Galaxy Linux x86 SDK` from the [Daheng Imaging website](https://va-imaging.com/fr/pages/telechargementsclients)
+2. Extract `Galaxy Linux x86 SDK_x.x.xxxx\Galaxy_Linux-x86_Gige-U3_32bits-64bits_x.x.xxxx.xxxx\Galaxy_Linux_Python_x.x.xxxx.xxxx\api`
+3. Replace `gxipy` and `setup.py` in the repo root with the new ones from the extracted folder.
+4. Update `pyproject.toml` > version with the new version number (same as in the new `setup.py`).
+   - **Mandatory**: the published version is read from `pyproject.toml`, not from the git tag, and PyPI refuses to upload a version that already exists.
+   - To re-publish the same SDK version (e.g. a packaging fix), use a post-release: `x.x.xxxx.xxxx.post1`.
+5. (Optional) Check the build locally:
+   ```shell
+   pip install --upgrade build twine
+   python -m build
+   python -m twine check dist/*
+   ```
+6. Commit and push the changes to `main`.
+7. Create a GitHub release with a tag matching the version, prefixed with `v` (e.g. `v2.6.2606.9081`).
+8. Publishing the release automatically triggers the [Publish to PyPI](.github/workflows/publish-to-pypi.yml) GitHub Action.
 
 ---
 
