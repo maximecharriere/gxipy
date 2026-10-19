@@ -49,91 +49,31 @@ class ImageProcess:
         if not isinstance(image_process_config, ImageProcessConfig):
             raise ParameterTypeError("image_process_config param must be ImageProcessConfig type.")
 
-        channel_order = DxRGBChannelOrder.ORDER_RGB
         if isinstance(image, (RawImage, RGBImage)):
-            pixel_format = image.frame_data.pixel_format
-            raw_image_width = image.frame_data.width
-            raw_image_height = image.frame_data.height
-            input_image_buffer = image.frame_data.image_buf
+            image_src = GxImageInfo()
+            image_src.image_pixel_format = image.frame_data.pixel_format
+            image_src.image_width = image.frame_data.width
+            image_src.image_height = image.frame_data.height
+            image_src.image_buf = image.frame_data.image_buf
         elif isinstance(image, GxImageInfo):
-            pixel_format = image.image_pixel_format
-            raw_image_width = image.image_width
-            raw_image_height = image.image_height
-            input_image_buffer = image.image_buf
+            image_src = image
         else:
             raise ParameterTypeError("image param must be RawImage or GxImageInfo type.")
 
-        if input_image_buffer is None:
+        if image_src.image_buf is None:
             raise ParameterTypeError("input_image_buffer param is null pointer.")
 
-        if pixel_format == GxPixelFormatEntry.RGB8:
-            channel_order = DxRGBChannelOrder.ORDER_RGB
-        elif pixel_format == GxPixelFormatEntry.BGR8:
-            channel_order = DxRGBChannelOrder.ORDER_BGR
+        self.__check_handle()
 
-        yuv_pixel = (GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)
-        if (pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8)) or (pixel_format in yuv_pixel):
-            if (pixel_format == GxPixelFormatEntry.BGR8) or (pixel_format in yuv_pixel):
-
-                self.__check_handle()
-                status = dx_image_format_convert_set_output_pixel_format(self.image_convert_handle,
-                                                                         GxPixelFormatEntry.RGB8)
-                if status != DxStatus.OK:
-                    raise UnexpectedError(
-                        "dx_image_format_convert_set_output_pixel_format failure, Error code:%s" % hex(
-                            status).__str__())
-
-                status = dx_image_format_convert_set_valid_bits(self.image_convert_handle, DxValidBit.BIT0_7)
-                if status != DxStatus.OK:
-                    raise UnexpectedError(
-                        "image_format_convert_set_alpha_value failure, Error code:%s" % hex(status).__str__())
-
-                status, out_lenght = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
-                                                                                            GxPixelFormatEntry.RGB8,
-                                                                                            image.frame_data.width,
-                                                                                            image.frame_data.height)
-                if status != DxStatus.OK:
-                    raise UnexpectedError(
-                        "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
-                            status).__str__())
-
-                image_temp = (c_ubyte * out_lenght)()
-                output_image_temp = addressof(image_temp)
-
-                status, input_length = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
-                                                                                              image.frame_data.pixel_format,
-                                                                                              image.frame_data.width,
-                                                                                              image.frame_data.height)
-                if status != DxStatus.OK:
-                    raise UnexpectedError(
-                        "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
-                            status).__str__())
-
-                status = dx_image_format_convert(self.image_convert_handle, image.frame_data.image_buf, input_length,
-                                                 output_image_temp,
-                                                 out_lenght, image.frame_data.pixel_format,
-                                                 image.frame_data.width, image.frame_data.height, False)
-
-                if status != DxStatus.OK:
-                    raise UnexpectedError("image_format_convert failure, Error code:%s" % hex(status).__str__())
-
-                input_image_buffer = output_image_temp
-            status = dx_image_improvement_ex(input_image_buffer, output_address,
-                                             raw_image_width, raw_image_height,
-                                             image_process_config.get_color_correction_param(),
-                                             image_process_config.get_contrast_lut().get_ctype_array(),
-                                             image_process_config.get_gamma_lut().get_ctype_array(),
-                                             channel_order)
-            if status != DxStatus.OK:
-                raise UnexpectedError("RGBImage.image_improvement: failed, error code:%s" % hex(status).__str__())
+        if self.__is_rgb_yuv(image_src.image_pixel_format):
+            self.__image_improvement_rgb_yuv( image_src, output_address, image_process_config)
             return
 
-        if ((pixel_format & PIXEL_BIT_MASK) != GX_PIXEL_8BIT):
-            dest_pixel_format = Utility.get_convert_dest_8bit_pixel_format(pixel_format)
+        if ((image_src.image_pixel_format & PIXEL_BIT_MASK) != GX_PIXEL_8BIT):
+            dest_pixel_format = Utility.get_convert_dest_8bit_pixel_format(image_src.image_pixel_format)
             if dest_pixel_format == GxPixelFormatEntry.UNDEFINED:
                 raise UnexpectedError("__convert_to_raw8 get dest pixel format failure")
 
-            self.__check_handle()
             status = dx_image_format_convert_set_output_pixel_format(self.image_convert_handle, dest_pixel_format)
             if status != DxStatus.OK:
                 raise UnexpectedError(
@@ -148,9 +88,9 @@ class ImageProcess:
 
             'Get the buffer length of the input pixel format'
             status, input_length = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
-                                                                                          pixel_format,
-                                                                                          raw_image_width,
-                                                                                          raw_image_height)
+                                                                                          image_src.image_pixel_format,
+                                                                                          image_src.image_width,
+                                                                                          image_src.image_height)
             if status != DxStatus.OK:
                 raise UnexpectedError(
                     "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
@@ -159,8 +99,8 @@ class ImageProcess:
             'Get the buffer length of the output pixel format and allocate the output image buffer  output_image_temp'
             status, out_lenght = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
                                                                                         dest_pixel_format,
-                                                                                        raw_image_width,
-                                                                                        raw_image_height)
+                                                                                        image_src.image_width,
+                                                                                        image_src.image_height)
             if status != DxStatus.OK:
                 raise UnexpectedError(
                     "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
@@ -168,28 +108,23 @@ class ImageProcess:
             image_temp = (c_ubyte * out_lenght)()
             output_8bit_image = addressof(image_temp)
 
-            status = dx_image_format_convert(self.image_convert_handle, input_image_buffer, input_length,
+            status = dx_image_format_convert(self.image_convert_handle, image_src.image_buf, input_length,
                                              output_8bit_image,
-                                             out_lenght, pixel_format,
-                                             raw_image_width, raw_image_height, False)
+                                             out_lenght, image_src.image_pixel_format,
+                                             image_src.image_width, image_src.image_height, False)
             if status != DxStatus.OK:
                 raise UnexpectedError("image_format_convert failure, Error code:%s" % hex(status).__str__())
 
-            if isinstance(image, (RawImage, RGBImage)):
-                image.frame_data.image_buf = output_8bit_image
-            elif isinstance(image, GxImageInfo):
-                image.image_buf = output_8bit_image
+            image_src.image_buf = output_8bit_image
 
-
-        if Utility.is_gray(pixel_format):
+        if Utility.is_gray(image_src.image_pixel_format):
             ImageProcess.__mono_image_process(self, output_address, image, image_process_config)
         else:
-            rgb_image_array_temp = (c_ubyte * image.frame_data.height * image.frame_data.width * 3)()
+            rgb_image_array_temp = (c_ubyte * image_src.image_width * image_src.image_height * 3)()
             rgb_image_array_temp_address = addressof(rgb_image_array_temp)
             ImageProcess.__raw_image_process(rgb_image_array_temp_address, image, image_process_config)
 
             # convert to rgb
-            self.__check_handle()
             status = dx_image_format_convert_set_output_pixel_format(self.image_convert_handle,
                                                                      GxPixelFormatEntry.RGB8)
             if status != DxStatus.OK:
@@ -203,20 +138,94 @@ class ImageProcess:
 
             status, out_lenght = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
                                                                                         GxPixelFormatEntry.BGR8,
-                                                                                        image.frame_data.width,
-                                                                                        image.frame_data.height)
+                                                                                        image_src.image_width,
+                                                                                        image_src.image_height)
             if status != DxStatus.OK:
                 raise UnexpectedError(
                     "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
                         status).__str__())
 
-            input_length = image.frame_data.width * image.frame_data.height * 3
+            input_length = image_src.image_width * image_src.image_height * 3
             status = dx_image_format_convert(self.image_convert_handle, rgb_image_array_temp_address, input_length,
                                              output_address,
                                              out_lenght, GxPixelFormatEntry.BGR8,
-                                             image.frame_data.width, image.frame_data.height, False)
+                                             image_src.image_width, image_src.image_height, False)
             if status != DxStatus.OK:
                 raise UnexpectedError("image_format_convert failure, Error code:%s" % hex(status).__str__())
+
+    def __is_rgb_yuv(self, pixel_format):
+        if pixel_format in ( GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8,
+                             GxPixelFormatEntry.RGBA8, GxPixelFormatEntry.BGRA8,
+                             GxPixelFormatEntry.RGBA12, GxPixelFormatEntry.RGBA12_P,
+                             GxPixelFormatEntry.BGRA12, GxPixelFormatEntry.BGRA12_P,
+                             GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY):
+            return True
+        else:
+            return False
+
+    def __image_improvement_rgb_yuv(self, image_src, output_address, image_process_config):
+        channel_order = DxRGBChannelOrder.ORDER_RGB
+        if image_src.image_pixel_format in (GxPixelFormatEntry.BGR8, GxPixelFormatEntry.BGRA8,
+                              GxPixelFormatEntry.BGRA12, GxPixelFormatEntry.BGRA12_P):
+            channel_order = DxRGBChannelOrder.ORDER_BGR
+
+        if ((image_src.image_pixel_format != GxPixelFormatEntry.RGB8) and (image_src.image_pixel_format != GxPixelFormatEntry.BGR8)):
+            if( channel_order == DxRGBChannelOrder.ORDER_RGB):
+                des_pixel_format = GxPixelFormatEntry.RGB8
+            else:
+                des_pixel_format = GxPixelFormatEntry.BGR8
+
+            status = dx_image_format_convert_set_output_pixel_format(self.image_convert_handle,
+                                                                     des_pixel_format)
+            if status != DxStatus.OK:
+                raise UnexpectedError(
+                    "dx_image_format_convert_set_output_pixel_format failure, Error code:%s" % hex(
+                        status).__str__())
+
+            status = dx_image_format_convert_set_valid_bits(self.image_convert_handle, image_process_config.get_valid_bits())
+            if status != DxStatus.OK:
+                raise UnexpectedError(
+                    "image_format_convert_set_alpha_value failure, Error code:%s" % hex(status).__str__())
+
+            status, out_lenght = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
+                                                                                        des_pixel_format,
+                                                                                        image_src.image_width,
+                                                                                        image_src.image_height)
+            if status != DxStatus.OK:
+                raise UnexpectedError(
+                    "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
+                        status).__str__())
+
+            image_temp = (c_ubyte * out_lenght)()
+            output_image_temp = addressof(image_temp)
+
+            status, input_length = dx_image_format_convert_get_buffer_size_for_conversion(self.image_convert_handle,
+                                                                                          image_src.image_pixel_format,
+                                                                                          image_src.image_width,
+                                                                                          image_src.image_height)
+            if status != DxStatus.OK:
+                raise UnexpectedError(
+                    "dx_image_format_convert_get_buffer_size_for_conversion failure, Error code:%s" % hex(
+                        status).__str__())
+
+            status = dx_image_format_convert(self.image_convert_handle,
+                                             image_src.image_buf, input_length,
+                                             output_image_temp, out_lenght,
+                                             image_src.image_pixel_format, image_src.image_width, image_src.image_height, False)
+
+            if status != DxStatus.OK:
+                raise UnexpectedError("image_format_convert failure, Error code:%s" % hex(status).__str__())
+
+            image_src.image_buf = output_image_temp
+        status = dx_image_improvement_ex(image_src.image_buf, output_address,
+                                         image_src.image_width, image_src.image_height,
+                                         image_process_config.get_color_correction_param(),
+                                         image_process_config.get_contrast_lut().get_ctype_array(),
+                                          image_process_config.get_gamma_lut().get_ctype_array(),
+                                         channel_order)
+        if status != DxStatus.OK:
+            raise UnexpectedError("RGBImage.image_improvement: failed, error code:%s" % hex(status).__str__())
+        return
 
     def static_defect_correction(self, input_address, output_address, defect_correction, defect_pos_buffer_address,
                                  defect_pos_buffer_size):

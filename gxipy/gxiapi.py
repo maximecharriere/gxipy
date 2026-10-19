@@ -9,4 +9,5 @@ from gxipy.gxidef import *
 from gxipy.DeviceManager import *
 from gxipy.StatusProcessor import *
 from gxipy.ImageProc import *
+from gxipy.Decompressor import *
 import types

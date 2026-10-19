@@ -204,6 +204,10 @@ class GxPixelFormatEntry:
     BGRA8 = (GX_PIXEL_COLOR | GX_PIXEL_32BIT | 0x0017)  # 0x2200017
     ARGB8 = (GX_PIXEL_COLOR | GX_PIXEL_32BIT | 0x0018)  # 0x2200018
     ABGR8 = (GX_PIXEL_COLOR | GX_PIXEL_32BIT | 0x0019)  # 0x2200019
+    RGBA12 = (GX_PIXEL_COLOR | GX_PIXEL_64BIT | 0x0061)  # 0x02400061
+    BGRA12 = (GX_PIXEL_COLOR | GX_PIXEL_64BIT | 0x004E)  # 0x0240004E
+    RGBA12_P = (GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x0062)  # 0x02300062
+    BGRA12_P = (GX_PIXEL_COLOR | GX_PIXEL_48BIT | 0x004F)  # 0x0230004F
     R8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x00C9)  # 0x010800C9
     G8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x00CD)  # 0x010800CD
     B8 = (GX_PIXEL_MONO | GX_PIXEL_8BIT | 0x00D1)  # 0x010800D1
@@ -1228,6 +1232,40 @@ class DxValidBit:
     def __init__(self):
         pass
 
+class GxNodeNameSpaceList:
+    NAMESPACE_CUSTOM                                            = 0             # name resides in custom namespace
+    NAMESPACE_STANDARD                                        = 1             # name resides in one of the standard namespaces
+    NAMESPACE_UNDEFINEDNAMESPACE                = 2             # Object is not yet initialized
+
+    def __init__(self):
+        pass
+
+class GxNodeVisibilityList:
+    VISIBILITY_BEGINNER                                                  = 0            # Always visible
+    VISIBILITY_EXPERT                                                       = 1            # Visible for experts or Gurus
+    VISIBILITY_GURU                                                         = 2            # Visible for Gurus
+    VISIBILITY_INVISIBLE                                                   = 3             # Not Visible
+    VISIBILITY_UNDEFINEDVISIBILITY                              = 99          # Object is not yet initialized
+
+    def __init__(self):
+        pass
+
+class GxNodeStreamableList:
+    STREAMABLE_NO                                                        = 0            # node is not streamable
+    STREAMABLE_YES                                                        = 1            # node is streamable
+    STREAMABLE_UNDEFINEDYESNO                             = 2            # Object is not yet initialized
+
+    def __init__(self):
+        pass
+
+class GxNodeCachableList:
+    CACHABLE_NOCACHE                                                  = 0            # Do not use cache
+    CACHABLE_WRITETHROUGH                                       = 1            # Write to cache and register
+    CACHABLE_WRITEAROUND                                          = 2            # Write to register, write to cache on read
+    CACHABLE_UNDEFINEDCACHINGMODE                    = 3             # Object is not yet initialized
+
+    def __init__(self):
+        pass
 
 # image mirror method
 class DxImageMirrorMode:
@@ -1253,5 +1291,16 @@ class GxImageInfo:
     image_buf = None
     image_pixel_format = GxPixelFormatEntry.UNDEFINED
 
+    def __init__(self):
+        pass
+
+class GxWindowsID:
+    WINDOW_PROPERTY = 0x0
+    def __init__(self):
+        pass
+
+class GxWindowsShowMode:
+    NON_BLOCK_SHOW_MODE = 0
+    BLOCK_SHOW_MODE = 1
     def __init__(self):
         pass

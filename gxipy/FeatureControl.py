@@ -18,6 +18,12 @@ class FeatureControl:
         """
         self.__handle = handle
 
+        self.__c_feature_callback = FEATURE_CALL(self.__on_feature_callback)
+        self.__py_feature_callback = None
+
+        self.__c_feature_callback_char = FEATURE_CALL_CHAR(self.__on_feature_callback_char)
+        self.__py_feature_callback_char = None
+
     def is_implemented(self,feature_name):
         """
         :brief      Get feature node is implemented
@@ -271,3 +277,185 @@ class FeatureControl:
         StatusProcessor.process(status, 'Device', 'set_write_remote_device_port_stacked')
 
         return status
+
+    def get_feature_name_space(self, feature_name):
+        """
+        :brief      Obtain whether the node is a protocol standard node.
+        :param feature_name:    Feature node name
+        :return:    GxNodeNameSpaceType
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_feature_name_space: "
+                                     "Expected feature_name type is str, not %s" % type(feature_name))
+
+        status, node_name_space = gx_get_node_name_space( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_feature_name_space')
+        return node_name_space
+
+    def get_feature_visibility(self, feature_name):
+        """
+        :brief      Recommended visibility of a node.
+        :param feature_name:    Feature node name
+        :return:    GxNodeVisibilityType
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_feature_visibility: "
+                                     "Expected feature_name type is str, not %s" % type(feature_name))
+
+        status, node_visibility = gx_get_node_visibility( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_feature_visibility')
+        return node_visibility
+
+    def get_feature_streamable(self, feature_name):
+        """
+        :brief      Can the node values be streamable.
+        :param feature_name:    Feature node name
+        :return:    GxNodeStreamableType
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_feature_streamable: "
+                                     "Expected feature_name type is str, not %s" % type(feature_name))
+
+        status, node_streamable= gx_get_node_streamable( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_feature_streamable')
+        return node_streamable
+
+    def get_feature_cachable(self, feature_name):
+        """
+        :brief      Caching mode of a node.
+        :param feature_name:    Feature node name
+        :return:    GxNodeCachableType
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_feature_cachable: "
+                                     "Expected feature_name type is str, not %s" % type(feature_name))
+
+        status, node_cachable= gx_get_node_cachable( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_feature_cachable')
+        return node_cachable
+
+    def get_feature_polling(self, feature_name):
+        """
+        :brief      Get polling value of a node.
+        :param feature_name:    Feature node name
+        :return:    int
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_feature_polling: "
+                                     "Expected feature_name type is str, not %s" % type(feature_name))
+
+        status, node_polling= gx_get_node_polling( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_feature_polling')
+        return node_polling
+
+    def register_feature_callback(self, callback_func, feature_id, args):
+        """
+        :brief      Register the feature event callback function.
+        :param      callback_func:  callback function
+        :param      feature_id:     feature id
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("FeatureControl.register_feature_callback: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        if feature_id not in vars(GxFeatureID).values():
+            raise ParameterTypeError("FeatureControl.register_feature_callback: "
+                                     "Expected feature id is in GxEventSectionEntry not %s" % feature_id)
+
+        status, feature_callback_handle = gx_register_feature_callback \
+            (self.__handle, self.__c_feature_callback, feature_id, args)
+        StatusProcessor.process(status, 'FeatureControl', 'register_feature_callback')
+
+        # callback will not recorded when register callback failed.
+        self.__py_feature_callback = callback_func
+        return feature_callback_handle
+
+    def register_feature_callback_by_string(self, callback_func, feature_name, args):
+        """
+        :brief      Register the feature event callback function.
+        :param      callback_func:  callback function
+        :param      feature_id:     feature id
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("FeatureControl.register_feature_callback_by_string: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.register_feature_callback_by_string: "
+                                     "Expected feature id is in GxEventSectionEntry not %s" % feature_name)
+
+        status, feature_callback_handle = gx_register_feature_call_back_by_string \
+            (self._handle, self.__c_feature_callback_char, feature_name, args)
+        StatusProcessor.process(status, 'FeatureControl', 'register_feature_callback_by_string')
+
+        # callback will not recorded when register callback failed.
+        self.__py_feature_callback_char = callback_func
+        return feature_callback_handle
+
+    def unregister_feature_callback(self, feature_id, feature_callback_handle):
+        """
+        :brief      Unregister the feature event callback function.
+        :return:    none
+        """
+        if feature_id not in vars(GxFeatureID).values():
+            raise ParameterTypeError("FeatureControl.unregister_feature_callback: "
+                                     "Expected feature id is in GxEventSectionEntry not %s" % feature_id)
+
+        status = gx_unregister_feature_callback(self._handle, feature_id, feature_callback_handle)
+        StatusProcessor.process(status, 'FeatureControl', 'unregister_feature_callback')
+
+        self.__py_feature_callback = None
+
+    def unregister_feature_callback_by_string(self, feature_name, feature_callback_handle):
+        """
+        :brief      Unregister the feature event callback function.
+        :return:    none
+        """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.unregister_feature_callback_by_string: "
+                                     "Expected feature id is in GxEventSectionEntry not %s" % feature_name)
+
+        status = gx_unregister_feature_call_back_by_string(self._handle, feature_name, feature_callback_handle)
+        StatusProcessor.process(status, 'FeatureControl', 'unregister_feature_callback_by_string')
+
+        self.__py_feature_callback_char = None
+
+    def __on_feature_callback(self, c_feature_id, c_user_param):
+        """
+        :brief      feature event callback function with an unused c_void_p.
+        :return:    none
+        """
+        self.__py_feature_callback(c_feature_id, c_user_param)
+
+    def __on_feature_callback_char(self, c_feature_name, c_user_param):
+        """
+        :brief      feature event callback function with an unused c_void_p.
+        :return:    none
+        """
+        self.__py_feature_callback_char(c_feature_name, c_user_param)
+
+    def get_child_entry(self, feature_name):
+        """
+                :brief      retrieve the child nodes of feature_name
+                :param      feature_name:the feature node name.
+                                        type: char*
+                :param      feature_list:the feature node list (Type: GXFeatureName)
+                                        type: char*
+                :param      count:the feature node list count
+                                        type: char*
+                :return:    status:     State return int value
+                                 feature list:  GXFeatureName list
+                """
+        if not isinstance(feature_name, str):
+            raise ParameterTypeError("FeatureControl.get_child_entry: "
+                                     "Expected 'feature_name' is 'string' not %s" % feature_name)
+
+        status, feature_list, list_size = gx_get_child_entry( self.__handle, feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_child_entry')
+
+        feature_list_return = []
+        for index in range(list_size):
+            feature_list_return.append( string_decoding( feature_list[index].feature_name))
+        return feature_list_return

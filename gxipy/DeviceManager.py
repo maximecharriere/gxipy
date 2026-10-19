@@ -7,6 +7,7 @@ import numpy
 from numpy.compat import long
 
 from gxipy.Device import Device
+from gxipy.FlatFieldCorrection import *
 from gxipy.gxwrapper import *
 from gxipy.dxwrapper import *
 from gxipy.gxidef import *
@@ -16,6 +17,7 @@ from gxipy.Interface import *
 from gxipy.Device import *
 from gxipy.ImageFormatConvert import *
 from gxipy.ImageProcess import *
+from gxipy.Decompressor import *
 from gxipy.Exception import *
 import types
 
@@ -79,7 +81,7 @@ class DeviceManager(object):
         for interface_item in self.__interface_info_list:
             if interface_item['handle'] == interface_handle:
                 break
-            ++index
+            index = index + 1
 
         if device_class == GxDeviceClassList.U3V:
             return U3VDevice(device_handle, Interface(interface_handle, self.__interface_info_list[index]))
@@ -648,6 +650,14 @@ class DeviceManager(object):
         image_format_convert = ImageFormatConvert()
         return image_format_convert
 
+    def create_flat_field_correction(self):
+        """
+        :brief      create new flat_field_correction
+        :return:    GxImageFormatConvert
+        """
+        flat_field_correction = FlatFieldCorrection()
+        return flat_field_correction
+
     def create_image_process(self):
         """
         :brief      create image process
@@ -720,6 +730,14 @@ class DeviceManager(object):
                                                    time_out, expect_ack_number_res)
         StatusProcessor.process(status, 'DeviceManager', 'issue_scheduled_action_command')
         return actual_ack_list
+
+    def create_decompressor(self):
+        """
+        :brief      create new Decompssor pointer
+        :return:    Decompressor
+        """
+        decompressor = Decompressor()
+        return decompressor
 
 class _InterUtility:
     def __init__(self):

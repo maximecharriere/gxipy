@@ -37,6 +37,12 @@ class Device:
         self.__py_offline_callback = None
         self.__offline_callback_handle = None
 
+        self.__c_reconnect_callback = RECONNECT_CALL(self.__on_device_reconnect_callback)
+        self.__py_reconnect_callback = None
+
+        self.__c_disconnect_callback = DISCONNECT_CALL(self.__on_device_disconnect_callback)
+        self.__py_disconnect_callback = None
+
         self.__c_feature_callback = FEATURE_CALL(self.__on_device_feature_callback)
         self.__py_feature_callback = None
 
@@ -595,6 +601,61 @@ class Device:
         self.__py_offline_callback = None
         self.__offline_callback_handle = None
 
+    def register_device_reconnect_callback(self, callback_func):
+        """
+        :brief      Register the device offline event callback function.
+                    Interface is obsolete.
+        :param      callback_func:  callback function
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("Device.register_device_reconnect_callback: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        status = gx_register_device_reconnect_callback(self.__dev_handle, self.__c_reconnect_callback)
+        StatusProcessor.process(status, 'Device', 'register_device_reconnect_callback')
+
+        # callback will not recorded when register callback failed.
+        self.__py_reconnect_callback = callback_func
+
+    def unregister_device_reconnect_callback(self):
+        """
+        :brief      Unregister the device offline event callback function.
+                    Interface is obsolete.
+        :return:    none
+        """
+        status = gx_unregister_device_reconnect_callback(self.__dev_handle)
+        StatusProcessor.process(status, 'Device', 'unregister_device_reconnect_callback')
+        self.__py_reconnect_callback = None
+
+    def register_device_disconnect_callback(self, callback_func):
+        """
+        :brief      Register the device offline event callback function.
+                    Interface is obsolete.
+        :param      callback_func:  callback function
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("Device.register_device_disconnect_callback: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        status = gx_register_device_disconnect_callback \
+            (self.__dev_handle, self.__c_disconnect_callback)
+        StatusProcessor.process(status, 'Device', 'register_device_disconnect_callback')
+
+        # callback will not recorded when register callback failed.
+        self.__py_disconnect_callback = callback_func
+
+    def unregister_device_disconnect_callback(self):
+        """
+        :brief      Unregister the device offline event callback function.
+                    Interface is obsolete.
+        :return:    none
+        """
+        status = gx_unregister_device_disconnect_callback(self.__dev_handle)
+        StatusProcessor.process(status, 'Device', 'unregister_device_disconnect_callback')
+        self.__py_disconnect_callback = None
+
     def __on_device_offline_callback(self, c_user_param):
         """
         :brief      Device offline event callback function with an unused c_void_p.
@@ -603,6 +664,21 @@ class Device:
         """
         self.__py_offline_callback()
 
+    def __on_device_reconnect_callback(self, c_user_param):
+        """
+        :brief      Device Reconnect callback function with an unused c_void_p.
+                    Interface is obsolete.
+        :return:    none
+        """
+        self.__py_reconnect_callback()
+
+    def __on_device_disconnect_callback(self, c_user_param):
+        """
+        :brief      Device Disconnect callback function with an unused c_void_p.
+                    Interface is obsolete.
+        :return:    none
+        """
+        self.__py_disconnect_callback()
 
     # The following interfaces are obsolete.
     def stream_on(self, stream_index = 0):
@@ -613,6 +689,8 @@ class Device:
         """
         payload_size = self.data_stream[0].get_payload_size()
         self.data_stream[0].set_payload_size(payload_size)
+        if self.ChunkModeActive.is_implemented():
+            self.data_stream[0].set_chunk_data( self.ChunkModeActive.get())
         status = gx_send_command(self.__dev_handle, GxFeatureID.COMMAND_ACQUISITION_START)
         StatusProcessor.process(status, 'Device', 'stream_on')
         self.data_stream[0].set_acquisition_flag(True)
@@ -854,6 +932,101 @@ class Device:
         StatusProcessor.process(status, 'Device', 'get_device_persistent_ip_address')
         return status, ip, subnet_mask, default_gateway
 
+    def create_window(self, window_id, parent_window_handle):
+        """
+        :brief      Create a window based on the provided window ID.
+        :param      windows_id:     Different Types of Windows Currently Only Property Window
+        :param      parent_window_handle:  This parameter requires passing 0 when called, as the window will pop up for display.
+                                            (This parameter is reserved to support embedded display in the future.)
+        :return:    status:     State return value
+                    window_handle:        Successfully created window handle
+        """
+
+        if not isinstance(window_id, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(window_id))
+
+        if not isinstance(parent_window_handle, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected parent_window_handle type is int, not %s" % type(parent_window_handle))
+
+        status, window_handle = gx_create_window(self.__dev_handle, window_id, parent_window_handle)
+        StatusProcessor.process(status, 'Device', 'create_window')
+        return window_handle
+
+    def destroy_window(self, window_handle):
+        """
+        :param      window_handle:  The handle of the window.
+        :return:    status:     State return value
+                    handle:        Successfully created window handle
+        """
+
+        status = gx_destroy_window(window_handle)
+        StatusProcessor.process(status, 'Device', 'destroy_window')
+
+    def set_window_position(self, window_handle, pos_x, pos_y, width, height):
+        """
+        :param      window_handle:  The handle of the window.
+        :param      pos_x:  The x postion of the window.
+        :param      pos_y:  The y postion of the window.
+        :param      width:  The width of the window.(To display correctly, it must be greater than or equal to 450.)
+        :param      height:  The height of the window.(To ensure proper display, it must be greater than or equal to 600.)
+        :return:    status:     State return value
+        """
+        if not isinstance(pos_x, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(pos_x))
+
+        if not isinstance(pos_y, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(pos_y))
+
+        if not isinstance(width, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(width))
+
+        if not isinstance(height, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(height))
+
+        status = gx_set_show_position(window_handle, pos_x, pos_y, width, height)
+        StatusProcessor.process(status, 'Device', 'set_window_position')
+
+    def set_window_mode(self, window_handle, mode):
+        """
+        :param      window_handle:  The handle of the window.
+        :param      mode:       When set to NON_BLOCK_SHOW_MODE, it will not block subsequent operations.
+                                When set to BLOCK_SHOW_MODE, it will block subsequent operations.
+                                Note: Do not call this if your program is a GUI application (such as Qt, MFC, WinForms, etc.).
+        :return:    status:     State return value
+        """
+
+        if not isinstance(mode, INT_TYPE):
+            raise ParameterTypeError("Device.create_window: "
+                                     "Expected window_id type is int, not %s" % type(mode))
+
+        status = gx_set_show_mode(window_handle, mode)
+        StatusProcessor.process(status, 'Device', 'set_window_mode')
+
+    def show_window(self, window_handle, visible):
+        """
+        :param      window_handle:  The handle of the window.
+        :param      visible:       true:show window, false:hide window
+        :return:    status:     State return value
+        """
+
+        status = gx_show_window(window_handle, visible)
+        StatusProcessor.process(status, 'Device', 'show_window')
+
+    def set_window_title(self, window_handle, title):
+        """
+        :param      window_handle:  The handle of the window.
+        :param      title:       window title
+        :return:    status:     State return value
+        """
+
+        status = gx_set_window_title(window_handle, title)
+        StatusProcessor.process(status, 'Device', 'set_window_title')
 
 class GEVDevice(Device):
     def __init__(self, handle, interface_obj):

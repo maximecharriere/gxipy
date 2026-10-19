@@ -7,8 +7,10 @@ import numpy
 from gxipy.gxwrapper import *
 from gxipy.dxwrapper import *
 from gxipy.gxidef import *
+from gxipy.FeatureControl import *
 from gxipy.gxiapi import *
 from gxipy.StatusProcessor import *
+from gxipy.Buffer import *
 import types
 
 COLOR_TRANSFORM_MATRIX_SIZE = 9  # 3*3
@@ -17,49 +19,6 @@ if sys.version_info.major > 2:
     INT_TYPE = int
 else:
     INT_TYPE = (int, long)
-
-class Buffer:
-    def __init__(self, data_array):
-        try:
-            addressof(data_array)
-        except TypeError:
-            error_msg = "Buffer.__init__: param is error type."
-            raise ParameterTypeError(error_msg)
-
-        self.data_array = data_array
-
-    @staticmethod
-    def from_file(file_name):
-        file_object = open(file_name, "rb")
-        file_string = file_object.read()
-        # print("data_array_len0:", len(file_string))
-        data_array = create_string_buffer(file_string,len(file_string))
-        # print("data_array_len:",len(data_array))
-        # print("data_array:",data_array)
-        file_object.close()
-        return Buffer(data_array)
-
-    @staticmethod
-    def from_string(string_data):
-        data_array = create_string_buffer(string_data, len(string_data))
-        return Buffer(data_array)
-
-    def get_data(self):
-        buff_p = c_void_p()
-        buff_p.value = addressof(self.data_array)
-        string_data = string_at(buff_p, len(self.data_array))
-        return string_data
-
-    def get_ctype_array(self):
-        return self.data_array
-
-    def get_numpy_array(self):
-        numpy_array = numpy.array(self.data_array)
-        return numpy_array
-
-    def get_length(self):
-        return len(self.data_array)
-
 
 class RGBImage:
     def __init__(self, frame_data):
@@ -206,8 +165,10 @@ class RGBImage:
         return self.frame_data.image_size
 
 class RawImage:
-    def __init__(self, frame_data):
+    def __init__(self, frame_data, open_chunk_data:bool = False):
         self.frame_data = frame_data
+        self.__chunk_data_on = open_chunk_data
+        self.__chunk_data_handle = None
 
         if self.frame_data.image_buf is not None:
             self.__image_array = string_at(self.frame_data.image_buf, self.frame_data.image_size)
@@ -599,6 +560,12 @@ class RawImage:
                 print('''RawImage.convert: mode="RAW8" don't support flip=True''')
                 return None
 
+            if (self.frame_data.pixel_format == GxPixelFormatEntry.YUV422_8 or
+                self.frame_data.pixel_format == GxPixelFormatEntry.YUV422_8_UYVY or
+                self.frame_data.pixel_format == GxPixelFormatEntry.RGBA8 or
+                self.frame_data.pixel_format == GxPixelFormatEntry.BGRA8):
+                raise NoImplemented("Does not support 8bit depth pixel format to RAW8")
+
             dest_pixel_format = Utility.get_convert_dest_8bit_pixel_format(self.frame_data.pixel_format)
             if dest_pixel_format == GxPixelFormatEntry.UNDEFINED:
                 raise UnexpectedError("__convert_to_raw8 get dest pixel format failure")
@@ -617,7 +584,9 @@ class RawImage:
     def is_color_cam(self):
         pixel_color_filter = _InterUtility.get_pixel_color_filter(self.frame_data.pixel_format)
         if (pixel_color_filter > 0) or \
-                (self.frame_data.pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8, GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)):
+                (self.frame_data.pixel_format in (GxPixelFormatEntry.RGB8, GxPixelFormatEntry.BGR8, GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY,
+                                                  GxPixelFormatEntry.BGRA8, GxPixelFormatEntry.RGBA8, GxPixelFormatEntry.RGBA12, GxPixelFormatEntry.BGRA12,
+                                                  GxPixelFormatEntry.RGBA12_P, GxPixelFormatEntry.BGRA12_P)):
             return True
         else:
             return False
@@ -915,6 +884,7 @@ class RawImage:
             print("RawImage.get_numpy_array: This is a incomplete image")
             return None
 
+
         image_size = self.frame_data.width * self.frame_data.height
 
         if self.frame_data.pixel_format & PIXEL_BIT_MASK == GX_PIXEL_8BIT:
@@ -929,11 +899,26 @@ class RawImage:
         elif self.frame_data.pixel_format == GxPixelFormatEntry.BGR8:
             image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 3). \
             reshape(self.frame_data.height, self.frame_data.width, 3)
-        elif self.frame_data.pixel_format in (GxPixelFormatEntry.MONO10_PACKED, GxPixelFormatEntry.MONO12_PACKED):
-            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size). \
-            reshape(self.frame_data.height, self.frame_data.width)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.RGBA8:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 4). \
+                reshape(self.frame_data.height, self.frame_data.width, 4)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.BGRA8:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 4). \
+                reshape(self.frame_data.height, self.frame_data.width, 4)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.RGBA12:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 8). \
+                reshape(self.frame_data.height, self.frame_data.width, 8)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.BGRA12:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 8). \
+                reshape(self.frame_data.height, self.frame_data.width, 8)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.RGBA12_P:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 6). \
+                reshape(self.frame_data.height, self.frame_data.width, 6)
+        elif self.frame_data.pixel_format == GxPixelFormatEntry.BGRA12_P:
+            image_np = numpy.frombuffer(self.__image_array, dtype=numpy.ubyte, count=image_size * 6). \
+                reshape(self.frame_data.height, self.frame_data.width, 6)
         else:
-            image_np = None
+            raise NoImplemented("Unsupported pixel format %s, Call convert first." % hex(self.frame_data.pixel_format).__str__())
 
         return image_np
 
@@ -950,16 +935,33 @@ class RawImage:
         :brief      get Raw data
         :return:    raw data[string]
         """
-        if self.frame_data.pixel_format & PIXEL_BIT_MASK == GX_PIXEL_8BIT:
-            imagedata_size = self.frame_data.width * self.frame_data.height
-        elif self.frame_data.pixel_format & PIXEL_BIT_MASK == GX_PIXEL_16BIT:
-            imagedata_size = self.frame_data.width * self.frame_data.height * 2
-        elif self.frame_data.pixel_format & PIXEL_BIT_MASK == GX_PIXEL_12BIT:
-            imagedata_size = int(self.frame_data.width * self.frame_data.height * 1.5)
-        elif self.frame_data.pixel_format & PIXEL_BIT_MASK == GX_PIXEL_24BIT:
-            imagedata_size = self.frame_data.width * self.frame_data.height * 3
+        if False == self.__chunk_data_on :
+            return string_at('', 0)
+
+        if ( -1 ==self.frame_data.pixel_format) and ( -1 == self.frame_data.width) and ( -1 == self.frame_data.height):
+            imagedata_size = self.frame_data.image_size - 48
         else:
-            imagedata_size = 0
+            status, chunk_data_handle = dx_image_format_convert_create()
+            if status != DxStatus.OK:
+                raise UnexpectedError("get_chunkdata failure, Error code:%s" % hex(status).__str__())
+
+            status, buffer_size_c = dx_image_format_convert_get_buffer_size_for_conversion(chunk_data_handle,
+                                                                                       self.frame_data.pixel_format,
+                                                                                       self.frame_data.width,
+                                                                                       self.frame_data.height)
+            if status != DxStatus.OK:
+                dx_image_format_convert_destroy(chunk_data_handle)
+                raise UnexpectedError(
+                    "get_chunkdata failure, Error code:%s" % hex(
+                    status).__str__())
+
+            status = dx_image_format_convert_destroy( chunk_data_handle)
+            if status != DxStatus.OK:
+                raise UnexpectedError(
+                    "get_chunkdata failure, Error code:%s" % hex(
+                    status).__str__())
+
+            imagedata_size = buffer_size_c
 
         chunkdata_str = string_at(self.frame_data.image_buf+imagedata_size, self.frame_data.image_size - imagedata_size )
         return chunkdata_str
@@ -974,9 +976,13 @@ class RawImage:
             raise ParameterTypeError("RawImage.save_raw: "
                                      "Expected file_path type is str, not %s" % type(file_path))
 
+        # wirte real size
+        image_array = memoryview(self.__image_array)
+        chunk_to_write = image_array[:self.frame_data.image_size]
+
         try:
             fp = open(file_path, "wb")
-            fp.write(self.__image_array)
+            fp.write(chunk_to_write)
             fp.close()
         except Exception as error:
             raise UnexpectedError("RawImage.save_raw:%s" % error)
@@ -1037,6 +1043,30 @@ class RawImage:
         """
         return self.user_param
 
+    def get_chunk_data_feature_control(self):
+        """
+        :brief      Get chunk data feature control object
+        :return:    chunk data feature control object
+        """
+        if self.frame_data.chunk_data_handle == None:
+            raise NoImplemented("chunk data is not implemented!")
+        else:
+            feature_control = FeatureControl( self.frame_data.chunk_data_handle)
+            return  feature_control
+
+    def get_offset_x(self):
+        """
+        :brief      Get  offsetx of raw data
+        :return:    user param
+        """
+        return self.frame_data.offset_x
+
+    def get_offset_y(self):
+        """
+        :brief      Get  offsety of raw data
+        :return:    user param
+        """
+        return self.frame_data.offset_y
 class Utility:
     def __init__(self):
         pass
@@ -1252,6 +1282,10 @@ class Utility:
                       GxPixelFormatEntry.MONO10_P, GxPixelFormatEntry.MONO12_P,
                       GxPixelFormatEntry.MONO14_P, GxPixelFormatEntry.MONO8)
 
+        rgb_pixel = (GxPixelFormatEntry.RGBA12, GxPixelFormatEntry.RGBA12_P)
+
+        bgr_pixel = (GxPixelFormatEntry.BGRA12, GxPixelFormatEntry.BGRA12_P)
+
         if src_pixel_format in gr_pixel:
             return GxPixelFormatEntry.BAYER_GR8
         elif src_pixel_format in rg_pixel:
@@ -1268,6 +1302,10 @@ class Utility:
             return GxPixelFormatEntry.G8
         elif src_pixel_format == GxPixelFormatEntry.B8:
             return GxPixelFormatEntry.B8
+        elif src_pixel_format in rgb_pixel:
+            return GxPixelFormatEntry.RGB8
+        elif src_pixel_format in bgr_pixel:
+            return GxPixelFormatEntry.BGR8
         else:
             return GxPixelFormatEntry.UNDEFINED
 
@@ -1355,7 +1393,7 @@ class _InterUtility:
         :param      pixel_format
         :return:    pixel depth
         """
-        bpp8_tup = (GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY)
+        bpp8_tup = (GxPixelFormatEntry.YUV422_8, GxPixelFormatEntry.YUV422_8_UYVY, GxPixelFormatEntry.RGBA8, GxPixelFormatEntry.BGRA8)
 
         bpp10_tup = (GxPixelFormatEntry.MONO10, GxPixelFormatEntry.BAYER_GR10, GxPixelFormatEntry.BAYER_RG10,
                      GxPixelFormatEntry.BAYER_GB10, GxPixelFormatEntry.BAYER_BG10, GxPixelFormatEntry.MONO10_PACKED,
@@ -1369,7 +1407,9 @@ class _InterUtility:
                      GxPixelFormatEntry.BAYER_GR12_P, GxPixelFormatEntry.BAYER_RG12_P, GxPixelFormatEntry.BAYER_GB12_P,
                      GxPixelFormatEntry.BAYER_BG12_P, GxPixelFormatEntry.BAYER_RG12_PACKED,
                      GxPixelFormatEntry.BAYER_GR12_PACKED, GxPixelFormatEntry.BAYER_GB12_PACKED,
-                     GxPixelFormatEntry.BAYER_BG12_PACKED, GxPixelFormatEntry.MONO12_P)
+                     GxPixelFormatEntry.BAYER_BG12_PACKED, GxPixelFormatEntry.MONO12_P,
+                     GxPixelFormatEntry.RGBA12, GxPixelFormatEntry.RGBA12_P,
+                     GxPixelFormatEntry.BGRA12, GxPixelFormatEntry.BGRA12_P)
 
         bpp14_tup = (GxPixelFormatEntry.MONO14, GxPixelFormatEntry.MONO14_P,
                      GxPixelFormatEntry.BAYER_GR14, GxPixelFormatEntry.BAYER_RG14,

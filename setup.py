@@ -6,7 +6,7 @@ import sys
 
 setup(
     name='gxipy',
-    version='2.0.2412.9191',
+    version='2.6.2606.9081',
     description='',
     license='MIT',
     packages=['gxipy'],

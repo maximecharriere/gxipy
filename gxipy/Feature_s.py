@@ -5,9 +5,9 @@
 import numpy
 from gxipy.gxwrapper import *
 from gxipy.dxwrapper import *
-from gxipy.ImageProc import *
 from gxipy.gxiapi import *
 from gxipy.StatusProcessor import *
+from gxipy.Buffer import *
 import types
 
 if sys.version_info.major > 2:
@@ -114,6 +114,26 @@ class EnumFeature_s(Feature_s):
         StatusProcessor.process(status, 'FeatureControl', 'gx_get_enum_feature')
 
         return self.__range_dicts( enum_feature_info)
+
+    def __range_display_dicts(self, feature_value):
+        enum_dict = []
+        for index in range(feature_value.supported_number):
+            enum_dict.append({
+                "value": feature_value.supported_value[index].cur_value,
+                "symbolic": string_decoding(feature_value.supported_value[index].cur_symbolic),
+                "displayname": string_decoding(feature_value.supported_value[index].cur_displayname),
+            })
+        return enum_dict
+
+    def get_range_display_name(self):
+        """
+        :brief      Getting range of Enum feature (include display name)
+        :return:    enum_dict:    enum range dictionary
+        """
+        status, enum_feature_info = gx_get_enum_detail_feature( self.__handle, self.__feature_name)
+        StatusProcessor.process(status, 'FeatureControl', 'get_range_display_name')
+
+        return self.__range_display_dicts( enum_feature_info)
 
     def get(self):
         """

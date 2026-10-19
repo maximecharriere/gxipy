@@ -170,6 +170,22 @@ class StaticDefectCorrection(Structure):
     def __str__(self):
         return "FieldCorrectionProcess\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
 
+# Field correction process structure
+class FlatFieldCorrectionParameter(Structure):
+    _fields_ = [
+        ('bright_buf',                  c_void_p),      # Bright image buffer
+        ('dark_buf',                    c_void_p),      # Dark image buffer
+        ('pixel_format',                c_uint),        # pixel format
+        ('width',                       c_int32),      # image width
+        ('height',                      c_int32),      # image height
+        ('block_size',                  c_int32),      # block size
+        ('expected_gray',               c_int32),      # FFC expected gray value
+        ('array_reserved',              c_int32 * 64),  # Reserved
+    ]
+
+    def __str__(self):
+        return "FlatFieldCorrectionParameter\n%s" % "\n".join("%s:\t%s" % (n, getattr(self, n[0])) for n in self._fields_)
+
 if hasattr(dll, 'DxGetLut'):
     def dx_get_lut(contrast_param, gamma, lightness):
         """
@@ -901,42 +917,6 @@ if hasattr(dll, 'DxGetFFCCoefficients'):
 
         return status, ffc_coefficients_c, ffc_coefficients_len_c.value
 
-
-if hasattr(dll, "DxFlatFieldCorrection"):
-    def dx_flat_field_correction(input_address, output_address, actual_bits, width, height, ffc_coefficients):
-        """
-        :brief  Flat Field Correction Process
-        :param      input_address:          input buffer address, buff size = width * height
-        :param      output_address:         output buffer address, buff size = width * height
-        :param      actual_bits:            image actual bits
-        :param      width:                  image width
-        :param      height:                 image height
-        :param      ffc_coefficients:       flat field correction coefficients data array
-        :return:    status:                 State return value, See detail in DxStatus
-        """
-        input_address_p = c_void_p()
-        input_address_p.value = input_address
-
-        output_address_p = c_void_p()
-        output_address_p.value = output_address
-
-        width_c = c_uint32()
-        width_c.value = width
-
-        height_c = c_uint32()
-        height_c.value = height
-
-        actual_bits_c = c_uint()
-        actual_bits_c.value = actual_bits
-
-        ffc_coefficients_len_c = c_int()
-        ffc_coefficients_len_c.value = len(ffc_coefficients)
-
-        status = dll.DxFlatFieldCorrection(input_address_p, output_address_p, actual_bits_c, width_c, height_c,
-                                           byref(ffc_coefficients), byref(ffc_coefficients_len_c))
-
-        return status
-
 if hasattr(dll, "DxRaw12PackedToRaw16"):
     def dx_raw12_packed_to_raw16(input_address, output_address, width, height):
         """
@@ -1472,3 +1452,177 @@ if hasattr(dll, "DxImageMirror16B"):
         status = dll.DxImageMirror16B(input_address_p, output_address_p, width_c, height_c, mirro_mode)
 
         return status
+
+if hasattr(dll, 'DxFFCCreate'):
+    def dx_ffc_create():
+        """
+        :brief Create handle for flat field correction
+        :param  phandle          [out] flat field correction handle
+        """
+        handle = c_void_p()
+        status = dll.DxFFCCreate(pointer(handle))
+        return status, handle
+
+if hasattr(dll, 'DxFFCDestroy'):
+    def dx_ffc_destroy(handle):
+        """
+        :brief Destroy handle for flat field correction
+        :param  handle          [in] flat field correction handle
+        """
+        status = dll.DxFFCDestroy(handle)
+        return status
+
+if hasattr(dll, "DxFFCSetFrameCount"):
+    def dx_set_frame_count(handle, ffc_frame_count):
+        """
+        :brief  Set flat field correction frame count
+        :param  handle                  [in] flat field correction handle
+        :param  nFFCFrameCount          [in] flat field correction frame count
+        :return emStatus
+        """
+        ffc_frame_count_c = c_uint16()
+        ffc_frame_count_c.value = ffc_frame_count
+
+        status = dll.DxFFCSetFrameCount(handle, ffc_frame_count_c)
+
+        return status
+
+if hasattr(dll, "DxFFCGetCoefficientsSize"):
+    def dx_ffc_get_coefficients_size(handle, ffc_param):
+        """
+        :brief  Calculate flat field correction coefficients size
+        :param  handle                       [in] flat field correction handle
+        :param  ffc_param                  [in] flat field correction parameter
+        :return status,CoefficientsSize
+        """
+        coefficients_size = c_int32()
+        status = dll.DxFFCGetCoefficientsSize(handle, byref(ffc_param), byref(coefficients_size))
+        return status, coefficients_size.value
+
+if hasattr(dll, "DxFFCCalculate"):
+    def dx_ffc_calculate(handle, ffc_param, coefficients_buffer, coefficients_buffer_size):
+        """
+        :brief  Calculate flat field correction coefficients size
+        :param  handle                       [in] flat field correction handle
+        :param  ffc_param                  [in] flat field correction parameter
+        :param  coefficients_buffer        [out] flat field correction coefficients
+        :param  coefficients_buffer_size    [in] flat field correction coefficients size
+        """
+        coefficients_size_c = c_int32()
+        coefficients_size_c.value = coefficients_buffer_size
+
+        output_address_p = c_void_p()
+        output_address_p.value = coefficients_buffer
+
+        status = dll.DxFFCCalculate(handle, byref(ffc_param), output_address_p, byref(coefficients_size_c))
+        return status
+
+if hasattr(dll, "DxFlatFieldCorrection"):
+    def dx_flat_field_correction(input_address, output_address, actual_bits, width, height, coefficients_buffer, coefficients_buffer_size):
+        """
+        :brief  Flat Field Correction Process
+        :param  input_address    	  [in]        Image in
+        :param  output_address    	  [out]       Image out
+        :param  actual_bits           [in]        Image actual cits
+        :param  width             [in]        Image width
+        :param  heidht            [in]        Image height
+        :param  coefficients_buffer      [in]        Flat field correction coefficients
+        :param  coefficients_buffer_size              [in]        Flat field correction coefficients(byte)
+        """
+        coefficients_size_c = c_int32()
+        coefficients_size_c.value = coefficients_buffer_size
+
+        input_address_p = c_void_p()
+        input_address_p.value = input_address
+
+        output_address_p = c_void_p()
+        output_address_p.value = output_address
+
+        coefficients_buffer_p = c_void_p()
+        coefficients_buffer_p.value = coefficients_buffer
+
+        width_c = c_uint32()
+        width_c.value = width
+
+        height_c = c_uint32()
+        height_c.value = height
+
+        actual_bits_c = c_uint()
+        actual_bits_c.value = actual_bits
+
+        status = dll.DxFlatFieldCorrection(input_address_p, output_address_p, actual_bits_c, width_c, height_c, coefficients_buffer_p,
+                                         byref(coefficients_size_c))
+        return status
+
+    if hasattr(dll, 'DxDecompressionCreate'):
+        def dx_decompression_create():
+            """
+            :brief create decompression handle
+
+            :param  handle           [out]   decompression handle
+
+            :return status
+            """
+            handle = c_void_p()
+            status = dll.DxDecompressionCreate(pointer(handle))
+            return status, handle
+
+    if hasattr(dll, 'DxDecompressionDestroy'):
+        def dx_decompression_destroy( handle):
+            """
+            :brief destroy decompression handle
+
+            :param  handle           [in]   decompression handle
+
+            :return status
+            """
+            status = dll.DxDecompressionDestroy(handle)
+            return status
+
+    if hasattr(dll, 'DxDecompression'):
+        def dx_decompression( handle, compression_image_address, compression_image_size, decompression_image_address,
+                              decompression_image_address_size, img_pixel_format, img_width, img_height, compression_method ):
+            """
+            :brief decompression image
+
+            :brief  decompression image
+
+            :param  handle                                    [in]            decompression handle
+            :param  compression_image_address                 [in]            compression image address
+            :param  compression_image_size                    [in]            compression image buffer size
+            :param  decompression_image_address               [out]         decompression image address
+            :param  decompression_image_address_size          [in|out]     decompression image buffer size
+            :param  img_pixel_format                          [in]              Image pixel format
+            :param  img_width                                 [in]              Image width
+            :param  img_height                                [in]              Image height
+            :param  compression_method                        [in]             compression method
+
+            :return status
+            """
+            compression_image_p = c_void_p()
+            compression_image_p.value = compression_image_address
+
+            compression_image_buffer_size_c = c_int32()
+            compression_image_buffer_size_c.value = compression_image_size
+
+            width_c = c_uint32()
+            width_c.value = img_width
+
+            height_c = c_uint32()
+            height_c.value = img_height
+
+            pixel_format_c = c_uint()
+            pixel_format_c.value = img_pixel_format
+
+            compression_method_c = c_int32()
+            compression_method_c.value = compression_method
+
+            decompression_image_p = c_void_p()
+            decompression_image_p.value = decompression_image_address
+
+            decompression_image_address_size_c = c_int32()
+            decompression_image_address_size_c.value = decompression_image_address_size
+
+            status = dll.DxDecompression(handle, compression_image_p, compression_image_buffer_size_c, decompression_image_p,
+                                         byref(decompression_image_address_size_c), pixel_format_c, width_c, height_c, compression_method_c)
+            return status

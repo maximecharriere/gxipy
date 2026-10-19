@@ -40,6 +40,7 @@ class DataStream:
         self.__frame_buf_map = {}
         self.__register_buf_param_map = {}
         self.__register_buf_param_content_map = {}
+        self.__chunk_data_on = False
 
     def get_feature_control(self):
         """
@@ -80,13 +81,12 @@ class DataStream:
         frame_data = GxFrameData()
         frame_data.image_size = self.payload_size
         frame_data.image_buf = None
-        image = RawImage(frame_data)
+        image = RawImage(frame_data, self.__chunk_data_on)
 
         status = gx_get_image(self.__dev_handle, image.frame_data, timeout)
         if status == GxStatusList.SUCCESS:
             try:
-                if sys.platform != 'linux2' and sys.platform != 'linux':
-                    image.user_param = self.__register_buf_param_content_map[frame_data.user_param]
+                image.user_param = self.__register_buf_param_content_map[frame_data.user_param]
             except KeyError:
                 image.user_param = None
 
@@ -131,12 +131,11 @@ class DataStream:
             frame_data.timestamp = frame_buffer.timestamp
             frame_data.user_param = frame_buffer.user_param
             frame_data.buf_id = frame_buffer.buf_id
+            frame_data.chunk_data_handle = frame_buffer.chunk_data_handle
+            frame_data.offset_x = frame_buffer.offset_x
+            frame_data.offset_y = frame_buffer.offset_y
 
-            if sys.platform == 'linux2' or sys.platform == 'linux':
-                frame_data.offset_x = frame_buffer.offset_x
-                frame_data.offset_y = frame_buffer.offset_y
-
-            image = RawImage(frame_data)
+            image = RawImage(frame_data, self.__chunk_data_on)
             try:
                 image.user_param = self.__register_buf_param_content_map[frame_data.user_param]
             except KeyError:
@@ -274,14 +273,18 @@ class DataStream:
         frame_data.frame_id = capture_data.contents.frame_id
         frame_data.timestamp = capture_data.contents.timestamp
         frame_data.status = capture_data.contents.status
+        frame_data.chunk_data_handle = capture_data.contents.chunk_data_handle
         # frame_data.buf_id = capture_data.contents.buf_id
 
         if sys.platform == 'linux2' or sys.platform == 'linux':
             frame_data.offset_x = capture_data.contents.offset_x
             frame_data.offset_y = capture_data.contents.offset_y
 
-        image = RawImage(frame_data)
+        image = RawImage(frame_data, self.__chunk_data_on)
         self.__py_capture_callback(image)
+
+    def set_chunk_data(self, open_chunk_data:bool):
+        self.__chunk_data_on = open_chunk_data
 
 class U3VDataStream(DataStream):
     def __init__(self, dev_handle, stream_handle):
